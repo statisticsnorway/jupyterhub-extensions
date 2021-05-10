@@ -9,7 +9,7 @@ from urllib.error import HTTPError
 import jwt
 from jupyterhub.handlers import LogoutHandler, BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
-from traitlets import Unicode, List
+from traitlets import Unicode, List, Bool
 from tornado import web
 
 
@@ -32,6 +32,12 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         allow_none=True,
         config=True,
         help="If set, exposes the user's access token(s) at this path"
+    )
+
+    enable_logout = Bool(
+        default_value=True,
+        config=True,
+        help="If True, it will logout in SSO."
     )
 
     def __init__(self, **kwargs):
@@ -96,8 +102,8 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             # Retrieve user authentication info, decode, and check if refresh is needed
             auth_state = await user.get_auth_state()
 
-            decoded_access_token = _decode_token(auth_state['access_token'])
-            decoded_refresh_token = _decode_token(auth_state['refresh_token'])
+            decoded_access_token = self._decode_token(auth_state['access_token'])
+            decoded_refresh_token = self._decode_token(auth_state['refresh_token'])
 
             diff_access = decoded_access_token['exp'] - time.time()
             # If we request the offline_access scope, our refresh token won't have expiration
@@ -122,7 +128,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 access_token, refresh_token = self._refresh_token(auth_state['refresh_token'])
                 # check signature for new access token, if it fails we catch in the exception below
                 self.log.info("Refresh user token")
-                _decode_token(access_token)
+                self._decode_token(access_token)
                 auth_state['access_token'] = access_token
                 auth_state['refresh_token'] = refresh_token
                 auth_state['exchanged_tokens'] = self._exchange_tokens(access_token)
@@ -202,10 +208,9 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             handlers.append((r'%s' % self.local_user_exposed_path, AuthHandler))
         return handlers
 
-
-@staticmethod
-def _decode_token(token):
-    return jwt.decode(token, options={"verify_signature": False, "verify_aud": False, "verify_exp": False})
+    @staticmethod
+    def _decode_token(token):
+        return jwt.decode(token, options={"verify_signature": False, "verify_aud": False, "verify_exp": False})
 
 
 class SSOLogoutHandler(LogoutHandler):
@@ -250,6 +255,6 @@ class AuthHandler(BaseHandler):
         self.write({
             "username": user.name,
             "access_token": auth_state['access_token'],
-            "exchanged_tokens" : auth_state['exchanged_tokens']
+            "exchanged_tokens": auth_state['exchanged_tokens']
         })
 
