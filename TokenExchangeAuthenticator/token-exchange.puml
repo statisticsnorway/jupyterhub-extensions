@@ -1,0 +1,81 @@
+@startuml
+
+actor "User" as U
+participant "Jupyterhub" as JH
+box "//''Authorization Server''//" #LightSteelBlue
+    participant "Keycloak (Identity broker)" as KC
+    participant "Google IDP" as IDP
+end box
+
+box "//''Resources''//" #LightGreen
+    participant "Internal services" as RS
+    participant "Google services" as GCS
+end box
+
+U -> JH: Access resource
+JH -> KC: Authorization request
+activate KC
+note over KC
+	Authorization request:
+	client_id
+	scope
+	response_type=code
+end note
+KC --> U: List of Identity Providers
+U-> KC: Select Identity Provider (Google)
+KC -> IDP: Authentication request
+activate IDP
+deactivate KC
+U -> IDP: Login & authorization consent
+IDP -> IDP: Validates and \nsigns in the user
+IDP --> KC: Authentication response
+deactivate IDP
+activate KC
+KC -> KC: Local authentication + identity federation
+KC --> JH: Authorization code
+JH -> KC: /oauth2/token
+note over KC
+    Access token request:
+    grant_type="authorization_code"
+    client_id="Jupyterhub"
+    client_secret
+    authorization_code
+end note
+KC -> IDP: /oauth2/authorize
+activate IDP
+IDP --> KC: redirect_uri + \nauthorization code
+KC -> IDP: /oauth2/token
+note over IDP
+    Access token request:
+    grant_type="authorization_code"
+    client_id="Keycloak"
+    client_secret
+    authorization_code
+end note
+IDP --> KC: Google access token + \nrefresh token
+deactivate IDP
+KC --> JH: Keycloak access token + \nrefresh token
+JH -> KC: request for token exchange
+note over KC
+    Exchange token request:
+    grant_type="token-exchange"
+    subject_type=access_token
+    client_id="Jupyterhub"
+    client_secret
+end note
+KC --> JH: Google access token
+deactivate KC
+break
+loop
+  JH -> RS: API call + Keycloak access token
+  activate RS
+  RS --> JH: API call response
+  deactivate RS
+  JH -> GCS: API call + Google access token
+  activate GCS
+  GCS --> JH: API call response
+  deactivate GCS
+end
+break
+
+@enduml

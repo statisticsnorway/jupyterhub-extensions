@@ -2,4 +2,5 @@
 
 Repository for the following JupyterHub extensions:
 
-* [TokenExchangeAuthenticator](TokenExchangeAuthenticator) - an OIDC authenticator, compatible with KeyCloak and support for [token exchange](https://www.keycloak.org/docs/latest/securing_apps/#_token-exchange)
+* [AuthHandler](AuthHandler) - a custom auth handler that exposes the user's access token(s)
+* [TokenExchangeAuthenticator](TokenExchangeAuthenticator) - an OIDC authenticator with support for [token exchange](https://www.keycloak.org/docs/latest/securing_apps/#_token-exchange)
