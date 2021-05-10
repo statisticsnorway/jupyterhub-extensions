@@ -7,9 +7,10 @@ from urllib import request, parse
 from urllib.error import HTTPError
 
 import jwt
-from jupyterhub.handlers import LogoutHandler
+from jupyterhub.handlers import LogoutHandler, BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from traitlets import Unicode, List
+from tornado import web
 
 
 class TokenExchangeAuthenticator(GenericOAuthenticator):
@@ -24,6 +25,13 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         default_value=[],
         config=True,
         help="List of Identity Providers (issuers) to perform token exchange"
+    )
+
+    local_user_exposed_path = Unicode(
+        default_value=None,
+        allow_none=True,
+        config=True,
+        help="If set, exposes the user's access token(s) at this path"
     )
 
     def __init__(self, **kwargs):
@@ -188,7 +196,11 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         return modified
 
     def get_handlers(self, app):
-        return super().get_handlers(app) + [(r'/logout', SSOLogoutHandler)]
+        handlers = super().get_handlers(app)
+        handlers.append((r'/logout', SSOLogoutHandler))
+        if self.local_user_exposed_path:
+            handlers.append((r'%s' % self.local_user_exposed_path, AuthHandler))
+        return handlers
 
 
 @staticmethod
@@ -212,4 +224,32 @@ class SSOLogoutHandler(LogoutHandler):
         else:
             await super().get()
 
+
+class AuthHandler(BaseHandler):
+    """
+    A custom request handler that returns user and auth state info
+    """
+
+    @web.authenticated
+    async def get(self):
+        user = await self.get_current_user()
+        if user is None:
+            self.log.info('User is none')
+            # whoami can be accessed via oauth token
+            user = self.get_current_user_oauth_token()
+        if user is None:
+            raise web.HTTPError(403)
+
+        self.log.info('User is ' + user.name)
+        auth_state = await user.get_auth_state()
+        if not auth_state:
+            # user has no auth state
+            self.log.error('User has no auth state')
+            return
+
+        self.write({
+            "username": user.name,
+            "access_token": auth_state['access_token'],
+            "exchanged_tokens" : auth_state['exchanged_tokens']
+        })
 

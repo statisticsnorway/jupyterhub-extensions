@@ -12,7 +12,7 @@ tokens are updated individually. If the update is not possible, it forces a re-a
 ## Sequence diagram
 The OIDC + token exchange flow may be illustrated like in the following sequence diagram:
 
-![OIDC with token exchange](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/statisticsnorway/jupyterhub-extensions/master/TokenExchangeAuthenticator/token-exchange.puml).
+![OIDC with token exchange](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/statisticsnorway/jupyterhub-extensions/master/TokenExchangeAuthenticator/token-exchange.puml)
 
 ## Installation
 
@@ -47,17 +47,32 @@ Hence, the Identity Broker (e.g. Keycloak) will only get the refresh token on th
 refresh may stop working (see [issue on stack overflow](https://stackoverflow.com/questions/62700314/keycloak-only-gets-google-refresh-token-on-first-login)).
 This can be remedied by prompting for re-consent at every login like this:
 
-
 ```python
 # This will force the retrieval of a refresh_token on every login
 c.TokenExchangeAuthenticator.extra_authorize_params = {'prompt': 'consent'}
 ```
 
-It's also necessary to configure the Client ID and secret. One way of doing this is by setting the following environment
+It's also necessary to configure the client ID and secret. This may be set directly like this:
+```python
+# This will force the retrieval of a refresh_token on every login
+c.TokenExchangeAuthenticator.client_id = 'client-id'
+c.TokenExchangeAuthenticator.client_secret = 'secret'
+```
+
+Or by setting the following environment
 variables:
 
 ```bash
-OAUTH_CLIENT_ID=my_id
-OAUTH_CLIENT_SECRET=my_secret
+OAUTH_CLIENT_ID=client_id
+OAUTH_CLIENT_SECRET=client_secret
 ```
 
+#### Expose the user's tokens
+
+The user's tokens are stored using Jupyterhub's [authentication state](https://jupyterhub.readthedocs.io/en/stable/reference/authenticators.html#authentication-state). 
+These can optionally be exposed at a custom path which will only be accessible inside the user's single-user notebook. 
+The path can be customised by setting:
+```python
+# If set, exposes the user's access token(s) at this relative path
+c.TokenExchangeAuthenticator.local_user_exposed_path = '/my-custom-path/userinfo'
+```
