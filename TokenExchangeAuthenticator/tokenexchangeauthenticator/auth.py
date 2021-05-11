@@ -40,6 +40,18 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         help="If True, it will logout in SSO."
     )
 
+    logout_redirect_uri = Unicode(
+        default_value='',
+        config=True,
+        help="URL to invalidate the SSO cookie."
+    )
+
+    hosted_domain = List(
+        Unicode(),
+        config=True,
+        help="""List of domains used to restrict sign-in, e.g. mycollege.edu""",
+    )
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Force auth state so that we can store the tokens in the user dict
@@ -74,6 +86,20 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         user = await super().authenticate(handler, data=data)
         if not user:
             return None
+
+        if self.hosted_domain:
+            user_email = user['auth_state']['oauth_user']['email']
+            user_email_domain = user_email.split('@')[1]
+            if user_email_domain not in self.hosted_domain:
+                self.log.warning(
+                    "OAuth unauthorized domain attempt: %s", user_email
+                )
+                raise HTTPError(
+                    403,
+                    "Account domain @{} not authorized.".format(
+                        user_email_domain
+                    ),
+                )
 
         user['auth_state']['exchanged_tokens'] = self._exchange_tokens(user['auth_state']['access_token'])
         self.log.info("Authentication Successful for user: %s" % (user['name']))
