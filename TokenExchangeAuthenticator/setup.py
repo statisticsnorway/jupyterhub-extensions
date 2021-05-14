@@ -38,7 +38,6 @@ setup(
     install_requires=DEPENDENCIES,
 
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
         'License :: OSI Approved :: MIT License',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
