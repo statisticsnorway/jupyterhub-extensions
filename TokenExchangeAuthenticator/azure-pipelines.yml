@@ -31,13 +31,14 @@ jobs:
 
       - script: |
           python -m pip install --upgrade pip
-          cd tokenexchangeauthenticator
+          cd TokenExchangeAuthenticator
           pip install -r requirements.txt
         displayName: 'Install dependencies'
 
       - script: |
           pip install pytest
           pip install pytest-cov
+          cd TokenExchangeAuthenticator
           pytest -v tokenexchangeauthenticator/tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html
         displayName: 'Test with pytest'
 
@@ -63,13 +64,13 @@ jobs:
 
       - script: |
           python -m pip install --upgrade pip
-          cd tokenexchangeauthenticator
+          cd TokenExchangeAuthenticator
           pip install -r requirements.txt
           make install-build-tools
         displayName: 'Install dependencies'
 
       - script: |
-          cd tokenexchangeauthenticator
+          cd TokenExchangeAuthenticator
           make release-validate
         displayName: "Validate release before uploading to PyPi"
 
@@ -85,6 +86,6 @@ jobs:
       # --config-file to pass the environment variable set by the authenticate task.
       - script: |
           echo 'Using config file $(PYPIRC_PATH)'
-          python -m twine upload -r "tokenexchangeauthenticator" --config-file $(PYPIRC_PATH) tokenexchangeauthenticator/dist/*
+          python -m twine upload -r "tokenexchangeauthenticator" --config-file $(PYPIRC_PATH) TokenExchangeAuthenticator/dist/*
         condition: succeeded()
         displayName: "Release to PyPi"
