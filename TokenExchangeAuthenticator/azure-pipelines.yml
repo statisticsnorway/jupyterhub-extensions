@@ -36,8 +36,7 @@ jobs:
         displayName: 'Install dependencies'
 
       - script: |
-          pip install pytest
-          pip install pytest-cov
+          pip install pytest pytest-cov pytest-asyncio
           cd TokenExchangeAuthenticator
           pytest -v tokenexchangeauthenticator/tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html
         displayName: 'Test with pytest'
