@@ -31,7 +31,7 @@ jobs:
 
       - script: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r tokenexchangeauthenticator/requirements.txt
         displayName: 'Install dependencies'
 
       - script: |
@@ -62,11 +62,13 @@ jobs:
 
       - script: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r tokenexchangeauthenticator/requirements.txt
+          cd tokenexchangeauthenticator
           make install-build-tools
         displayName: 'Install dependencies'
 
       - script: |
+          cd tokenexchangeauthenticator
           make release-validate
         displayName: "Validate release before uploading to PyPi"
 
@@ -81,8 +83,7 @@ jobs:
       # Use command line script to 'twine upload', use -r to pass the repository name and
       # --config-file to pass the environment variable set by the authenticate task.
       - script: |
-          make release-validate
           echo 'Using config file $(PYPIRC_PATH)'
-          python -m twine upload -r "tokenexchangeauthenticator" --config-file $(PYPIRC_PATH) dist/*
+          python -m twine upload -r "tokenexchangeauthenticator" --config-file $(PYPIRC_PATH) tokenexchangeauthenticator/dist/*
         condition: succeeded()
         displayName: "Release to PyPi"
