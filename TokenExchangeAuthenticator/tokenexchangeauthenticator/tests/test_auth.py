@@ -1,8 +1,10 @@
 import json
+from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 
+import jwt
 from oauthenticator.generic import GenericOAuthenticator
 from pytest import fixture, raises
 from tornado.web import HTTPError
@@ -104,6 +106,35 @@ async def test_authenticator_with_token_exchange(oauth_client):
         assert 'ext_idp' in auth_state['exchanged_tokens']
         assert 'access-token' in auth_state['exchanged_tokens']['ext_idp']
         assert 'exp' in auth_state['exchanged_tokens']['ext_idp']
+
+
+async def test_authenticator_refresh(oauth_client):
+    with mock.patch.object(GenericOAuthenticator, 'http_client') as fake_client:
+        fake_client.return_value = oauth_client
+        authenticator = get_authenticator()
+
+        handler = oauth_client.handler_for_user(user_model('john.doe', email='fake@email.com'))
+        user_info = await authenticator.authenticate(handler)
+
+        class SimpleUser:
+            def __init__(self, user_info):
+                self.user_info = user_info
+                dt = datetime.now() + timedelta(hours=1)
+                user_info['access_token'] = jwt.encode({'exp': dt}, 'secret', algorithm='HS256')
+                user_info['refresh_token'] = jwt.encode({'exp': dt}, 'secret', algorithm='HS256')
+                user_info['exchanged_tokens'] = {
+                    'external-idp-key': {
+                        'access_token': 'not-a-jwt-token',
+                        'exp': dt.timestamp()
+                    }
+                }
+
+            async def get_auth_state(self):
+                return self.user_info
+
+        result = await authenticator.refresh_user(SimpleUser(user_info))
+        # Still valid
+        assert result is True
 
 
 async def test_hosted_domain(oauth_client):

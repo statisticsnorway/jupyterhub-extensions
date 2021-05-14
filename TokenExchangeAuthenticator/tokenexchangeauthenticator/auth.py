@@ -138,16 +138,18 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
 
             if diff_access > self.auth_refresh_age:
                 # Access token is still valid - check exchange tokens
-                if self._check_for_expired_exchange_tokens(auth_state):
+                if 'exchanged_tokens' in auth_state and await self._check_for_expired_exchange_tokens(auth_state):
                     return {
                         'auth_state': auth_state
                     }
                 else:
                     # All tokens are token is still valid and will stay until next refresh
+                    self.log.info("All tokens are token is still valid and will stay until next refresh")
                     return True
 
             elif diff_refresh < 0:
                 # Refresh token not valid, need to re-authenticate again
+                self.log.info("Refresh token not valid, need to re-authenticate again")
                 return None
 
             else:
@@ -226,7 +228,8 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         for key in auth_state['exchanged_tokens']:
             exchange_token = auth_state['exchanged_tokens'][key]
             if 'exp' not in exchange_token:
-                return False
+                self.log.warn("Exchange token for '%s' is missing 'exp' property" % key)
+                break
             diff_access = exchange_token['exp'] - time.time()
             if diff_access < 0:
                 self.log.info("Refresh token exchange for provider: %s" % key)
