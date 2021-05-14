@@ -1,13 +1,14 @@
 import json
 from unittest import mock
 from unittest.mock import MagicMock
+from unittest.mock import Mock
 
 from oauthenticator.generic import GenericOAuthenticator
 from pytest import fixture, raises
 from tornado.web import HTTPError
 
-from .mocks import setup_oauth_mock
-from ..auth import TokenExchangeAuthenticator
+from .mocks import setup_oauth_mock, mock_handler
+from ..auth import TokenExchangeAuthenticator, SSOLogoutHandler, AuthHandler
 
 
 def openid_configuration():
@@ -73,6 +74,17 @@ async def test_authenticator(oauth_client):
         assert 'scope' in auth_state
 
 
+async def test_authenticator_with_local_user_exposed_path(oauth_client):
+    with mock.patch.object(GenericOAuthenticator, 'http_client') as fake_client:
+        fake_client.return_value = oauth_client
+        authenticator = get_authenticator(local_user_exposed_path='/custom-api/userinfo')
+
+        handler = oauth_client.handler_for_user(user_model('john.doe', email='fake@email.com'))
+        await authenticator.authenticate(handler)
+        handlers = [handler for _, handler in authenticator.get_handlers(None)]
+        assert any([h == AuthHandler for h in handlers])
+
+
 async def test_authenticator_with_token_exchange(oauth_client):
     with mock.patch.object(GenericOAuthenticator, 'http_client') as fake_client:
         fake_client.return_value = oauth_client
@@ -108,3 +120,25 @@ async def test_hosted_domain(oauth_client):
         with raises(HTTPError) as exc:
             await authenticator.authenticate(handler)
         assert exc.value.status_code == 403
+
+
+async def test_custom_logout(monkeypatch):
+    login_url = "http://myhost/login"
+    authenticator = get_authenticator()
+    logout_handler = mock_handler(SSOLogoutHandler,
+                                  authenticator=authenticator,
+                                  login_url=login_url)
+    logout_handler.clear_login_cookie = Mock()
+    logout_handler.clear_cookie = Mock()
+    logout_handler._jupyterhub_user = Mock()
+    monkeypatch.setitem(logout_handler.settings, 'statsd', Mock())
+
+    # Sanity check: Ensure the logout handler and url are set on the hub
+    handlers = [handler for _, handler in authenticator.get_handlers(None)]
+    assert any([h == SSOLogoutHandler for h in handlers])
+    assert authenticator.logout_url('http://myhost') == 'http://myhost/logout'
+
+    await logout_handler.get()
+    # Enable after upgrade to oauthenticator==0.14.0
+    # assert logout_handler.clear_login_cookie.called
+    # logout_handler.clear_cookie.assert_called_once_with(STATE_COOKIE_NAME)
