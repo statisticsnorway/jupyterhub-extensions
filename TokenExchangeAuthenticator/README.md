@@ -76,3 +76,19 @@ The path can be customised by setting:
 # If set, exposes the user's access token(s) at this relative path
 c.TokenExchangeAuthenticator.local_user_exposed_path = '/my-custom-path/userinfo'
 ```
+
+## Running tests
+To run the tests locally:
+
+```
+$ pip install --upgrade --pre -r test-requirements.txt
+```
+
+```
+$ pytest -v ./tokenexchangeauthenticator/tests/
+```
+Or you run a specific test file with:
+
+```
+$ pytest -v ./tokenexchangeauthenticator/tests/<test-file-name>
+```

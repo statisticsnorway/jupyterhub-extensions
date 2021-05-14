@@ -9,8 +9,9 @@ from urllib.error import HTTPError
 import jwt
 from jupyterhub.handlers import LogoutHandler, BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
-from traitlets import Unicode, List, Bool
 from tornado import web
+from tornado.httpclient import HTTPRequest
+from traitlets import Unicode, List, Bool
 
 
 class TokenExchangeAuthenticator(GenericOAuthenticator):
@@ -52,7 +53,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         help="""List of domains used to restrict sign-in, e.g. mycollege.edu""",
     )
 
-    def __init__(self, **kwargs):
+    def __init__(self, urlopen=request.urlopen, **kwargs):
         super().__init__(**kwargs)
         # Force auth state so that we can store the tokens in the user dict
         self.enable_auth_state = True
@@ -63,7 +64,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         self.log.info('Configuring OIDC from %s' % self.oidc_issuer)
 
         try:
-            with request.urlopen('%s/.well-known/openid-configuration' % self.oidc_issuer) as response:
+            with urlopen('%s/.well-known/openid-configuration' % self.oidc_issuer) as response:
                 data = json.loads(response.read())
 
                 if not set(['authorization_endpoint', 'token_endpoint', 'userinfo_endpoint',
@@ -94,14 +95,14 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 self.log.warning(
                     "OAuth unauthorized domain attempt: %s", user_email
                 )
-                raise HTTPError(
+                raise web.HTTPError(
                     403,
                     "Account domain @{} not authorized.".format(
                         user_email_domain
                     ),
                 )
 
-        user['auth_state']['exchanged_tokens'] = self._exchange_tokens(user['auth_state']['access_token'])
+        user['auth_state']['exchanged_tokens'] = await self._exchange_tokens(user['auth_state']['access_token'])
         self.log.info("Authentication Successful for user: %s" % (user['name']))
         return user
 
@@ -151,13 +152,13 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
 
             else:
                 # We need to refresh access token (which will also refresh the refresh token)
-                access_token, refresh_token = self._refresh_token(auth_state['refresh_token'])
+                access_token, refresh_token = await self._refresh_token(auth_state['refresh_token'])
                 # check signature for new access token, if it fails we catch in the exception below
                 self.log.info("Refresh user token")
                 self._decode_token(access_token)
                 auth_state['access_token'] = access_token
                 auth_state['refresh_token'] = refresh_token
-                auth_state['exchanged_tokens'] = self._exchange_tokens(access_token)
+                auth_state['exchanged_tokens'] = await self._exchange_tokens(access_token)
 
                 self.log.info('User %s oAuth tokens refreshed' % user.name)
                 return {
@@ -172,7 +173,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
 
         return False
 
-    def _exchange_token(self, issuer, token):
+    async def _exchange_token(self, issuer, token):
         self.log.info('Exchange tokens for: %s' % issuer)
         values = dict(
             grant_type='urn:ietf:params:oauth:grant-type:token-exchange',
@@ -183,37 +184,44 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             requested_token_type='urn:ietf:params:oauth:token-type:access_token',
             subject_token_type='urn:ietf:params:oauth:token-type:access_token'
         )
-        data = parse.urlencode(values).encode('ascii')
+        req = HTTPRequest(
+            self.token_url,
+            method="POST",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            body=parse.urlencode(values).encode('ascii'),
+        )
+        response = await self.http_client().fetch(req)
+        data = json.loads(response.body.decode('utf8', 'replace'))
+        return {
+            'access-token': data.get('access_token', None),
+            'exp': data.get('expires_in', None) + time.time()
+        }
 
-        req = request.Request(self.token_url, data)
-        with request.urlopen(req) as response:
-            data = json.loads(response.read())
-            return {
-                'access-token': data.get('access_token', None),
-                'exp': data.get('expires_in', None) + time.time()
-            }
-
-    def _exchange_tokens(self, token):
+    async def _exchange_tokens(self, token):
         tokens = dict()
         for issuer in self.exchange_tokens:
-            tokens[issuer] = self._exchange_token(issuer, token)
+            # TODO: use asyncio.gather here...
+            tokens[issuer] = await self._exchange_token(issuer, token)
         return tokens
 
-    def _refresh_token(self, refresh_token):
+    async def _refresh_token(self, refresh_token):
         values = dict(
             grant_type='refresh_token',
             client_id=self.client_id,
             client_secret=self.client_secret,
             refresh_token=refresh_token
         )
-        data = parse.urlencode(values).encode('ascii')
+        req = HTTPRequest(
+            self.token_url,
+            method="POST",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            body=parse.urlencode(values).encode('ascii'),
+        )
+        response = await self.http_client().fetch(req)
+        data = json.loads(response.body.decode('utf8', 'replace'))
+        return data.get('access_token', None), data.get('refresh_token', None)
 
-        req = request.Request(self.token_url, data)
-        with request.urlopen(req) as response:
-            data = json.loads(response.read())
-            return data.get('access_token', None), data.get('refresh_token', None)
-
-    def _check_for_expired_exchange_tokens(self, auth_state):
+    async def _check_for_expired_exchange_tokens(self, auth_state):
         modified = False
         for key in auth_state['exchanged_tokens']:
             exchange_token = auth_state['exchanged_tokens'][key]
@@ -222,7 +230,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             diff_access = exchange_token['exp'] - time.time()
             if diff_access < 0:
                 self.log.info("Refresh token exchange for provider: %s" % key)
-                new_token = self._exchange_token(key, auth_state['access_token'])
+                new_token = await self._exchange_token(key, auth_state['access_token'])
                 auth_state['exchanged_tokens'][key] = new_token
                 modified = True
         return modified
@@ -283,4 +291,3 @@ class AuthHandler(BaseHandler):
             "access_token": auth_state['access_token'],
             "exchanged_tokens": auth_state['exchanged_tokens']
         })
-
