@@ -166,7 +166,6 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 return {
                     'auth_state': auth_state
                 }
-
         except HTTPError as e:
             self.log.error("Failure calling the renew endpoint: %s (code: %s)" % (e.read(), e.code))
 
@@ -194,9 +193,10 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         )
         response = await self.http_client().fetch(req)
         data = json.loads(response.body.decode('utf8', 'replace'))
+        self.log.info('Exchange token expires in %s secs' % data.get('expires_in', None))
         return {
             'access-token': data.get('access_token', None),
-            'exp': data.get('expires_in', None) + time.time()
+            'exp': int(round(data.get('expires_in', 0) + time.time()))
         }
 
     async def _exchange_tokens(self, token):

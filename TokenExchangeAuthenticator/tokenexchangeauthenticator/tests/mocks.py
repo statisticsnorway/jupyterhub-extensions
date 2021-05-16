@@ -3,10 +3,12 @@
 import json
 import os
 import uuid
+from datetime import datetime, timedelta
 from io import BytesIO
 from unittest.mock import Mock
 from urllib.parse import urlparse, parse_qs
 
+import jwt
 import pytest
 from tornado import web
 from tornado.httpclient import HTTPResponse
@@ -193,11 +195,13 @@ def setup_oauth_mock(
                                 )
 
         # consume code, allocate token
-        token = uuid.uuid4().hex
+        dt = datetime.now() + timedelta(hours=1)
+        token = jwt.encode({'exp': dt}, 'secret', algorithm='HS256').decode('ascii')
         user = oauth_codes.pop(code)
         access_tokens[token] = user
         model = {
             'access_token': token,
+            'refresh_token': token,
             'token_type': token_type,
         }
         if token_request_style == 'jwt':
