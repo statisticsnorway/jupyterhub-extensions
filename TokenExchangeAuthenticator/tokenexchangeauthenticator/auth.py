@@ -143,8 +143,8 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                         'auth_state': auth_state
                     }
                 else:
-                    # All tokens are token is still valid and will stay until next refresh
-                    self.log.info("All tokens are token is still valid and will stay until next refresh")
+                    # All tokens are still valid and will stay until next refresh
+                    self.log.info("All tokens are still valid and will stay until next refresh")
                     return True
 
             elif diff_refresh < 0:
@@ -193,10 +193,10 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         )
         response = await self.http_client().fetch(req)
         data = json.loads(response.body.decode('utf8', 'replace'))
-        self.log.info('Exchange token expires in %s secs' % data.get('expires_in', None))
+        self.log.info('Exchange token expires in %s secs' % int(round(data.get('expires_in', 0) - time.time())))
         return {
             'access-token': data.get('access_token', None),
-            'exp': int(round(data.get('expires_in', 0) + time.time()))
+            'exp': data.get('expires_in', 0)
         }
 
     async def _exchange_tokens(self, token):
