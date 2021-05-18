@@ -8,6 +8,7 @@ from urllib.error import HTTPError
 
 import jwt
 from jupyterhub.handlers import LogoutHandler, BaseHandler
+from jwt.algorithms import RSAAlgorithm
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
 from tornado.httpclient import HTTPRequest
@@ -36,7 +37,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
     )
 
     enable_logout = Bool(
-        default_value=True,
+        default_value=False,
         config=True,
         help="If True, it will logout in SSO."
     )
@@ -51,6 +52,12 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         Unicode(),
         config=True,
         help="""List of domains used to restrict sign-in, e.g. mycollege.edu""",
+    )
+
+    verify_signature = Bool(
+        default_value=True,
+        config=True,
+        help="If False, it will disable JWT signature verification."
     )
 
     def __init__(self, urlopen=request.urlopen, **kwargs):
@@ -75,6 +82,13 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 self.token_url = data['token_endpoint']
                 self.userdata_url = data['userinfo_endpoint']
                 self.end_session_url = data['end_session_endpoint']
+
+                if self.verify_signature:
+                    jwks_uri = data['jwks_uri']
+                    with request.urlopen(jwks_uri) as jkws_response:
+                        jwk_data = json.loads(jkws_response.read())
+                        self.public_key = RSAAlgorithm(RSAAlgorithm.SHA256).from_jwk(jwk_data['keys'][0])
+                        self.log.info('Got public key from %s' % jwks_uri)
 
         except HTTPError:
             self.log.error("Failure to retrieve the openid configuration")
@@ -245,9 +259,15 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             handlers.append((r'%s' % self.local_user_exposed_path, AuthHandler))
         return handlers
 
-    @staticmethod
-    def _decode_token(token):
-        return jwt.decode(token, options={"verify_signature": False, "verify_aud": False, "verify_exp": False})
+    def _decode_token(self, token):
+        options = {
+            "verify_signature": self.verify_signature,
+            "verify_aud": False,
+            "verify_exp": False
+        }
+        return jwt.decode(token, self.public_key if self.verify_signature else None,
+                          options=options, algorithms=["HS256", "RS256"])
+
 
 
 class SSOLogoutHandler(LogoutHandler):

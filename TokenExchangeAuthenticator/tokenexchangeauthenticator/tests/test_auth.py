@@ -45,6 +45,7 @@ def get_authenticator(**kwargs):
     return TokenExchangeAuthenticator(
         oidc_issuer='https://mydomain.com/auth/realms/ssb/auth/realms/ssb',
         urlopen=urlopen,
+        verify_signature=False,
         **kwargs
     )
 
