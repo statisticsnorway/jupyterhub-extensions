@@ -87,7 +87,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                     jwks_uri = data['jwks_uri']
                     with request.urlopen(jwks_uri) as jkws_response:
                         jwk_data = json.loads(jkws_response.read())
-                        self.public_key = RSAAlgorithm(RSAAlgorithm.SHA256).from_jwk(jwk_data['keys'][0])
+                        self.public_key = RSAAlgorithm(RSAAlgorithm.SHA256).from_jwk(json.dumps(jwk_data['keys'][0]))
                         self.log.info('Got public key from %s' % jwks_uri)
 
         except HTTPError:
