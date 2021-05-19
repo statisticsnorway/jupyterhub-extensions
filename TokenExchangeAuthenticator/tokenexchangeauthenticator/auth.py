@@ -57,7 +57,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
     verify_signature = Bool(
         default_value=True,
         config=True,
-        help="If False, it will disable JWT signature verification."
+        help="If False, it will disable JWT signature verification of the access token."
     )
 
     def __init__(self, urlopen=request.urlopen, **kwargs):
@@ -144,7 +144,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             auth_state = await user.get_auth_state()
 
             decoded_access_token = self._decode_token(auth_state['access_token'])
-            decoded_refresh_token = self._decode_token(auth_state['refresh_token'])
+            decoded_refresh_token = self._decode_token(auth_state['refresh_token'], verify_signature=False)
 
             diff_access = decoded_access_token['exp'] - time.time()
             # If we request the offline_access scope, our refresh token won't have expiration
@@ -259,13 +259,15 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             handlers.append((r'%s' % self.local_user_exposed_path, AuthHandler))
         return handlers
 
-    def _decode_token(self, token):
+    def _decode_token(self, token, verify_signature=None):
+        if verify_signature is None:
+            verify_signature = self.verify_signature
         options = {
-            "verify_signature": self.verify_signature,
+            "verify_signature": verify_signature,
             "verify_aud": False,
             "verify_exp": False
         }
-        return jwt.decode(token, self.public_key if self.verify_signature else None,
+        return jwt.decode(token, self.public_key if verify_signature else None,
                           options=options, algorithms=["HS256", "RS256"])
 
 
