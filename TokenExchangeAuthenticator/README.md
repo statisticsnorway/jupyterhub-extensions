@@ -1,10 +1,6 @@
-# TokenExchangeAuthenticator
+# TokenExchangeAuthenticator for JupyterHub.
 
-This Authenticator is built on top of [OAuthenticator](https://github.com/jupyterhub/oauthenticator), and authenticates 
-users using OIDC and retrieves external Identity Provider (IDP) tokens
-using [token exchange](https://www.keycloak.org/docs/latest/securing_apps/#_token-exchange). This implementation is
-compatible with Keycloak as an [Identity Broker](https://www.keycloak.org/docs/latest/server_admin/#_identity_broker)
-and Google as an external IDP (see [Internal Token to External Token Exchange](https://www.keycloak.org/docs/latest/securing_apps/#internal-token-to-external-token-exchange)). 
+This Authenticator can be plugged in and used with JupyterHub. It is built on top of [OAuthenticator](https://github.com/jupyterhub/oauthenticator), and authenticates users using OIDC and retrieves external Identity Provider (IDP) tokens using [token exchange](https://www.keycloak.org/docs/latest/securing_apps/#_token-exchange). This implementation is compatible with Keycloak as an [Identity Broker](https://www.keycloak.org/docs/latest/server_admin/#_identity_broker) and Google as an external IDP (see [Internal Token to External Token Exchange](https://www.keycloak.org/docs/latest/securing_apps/#internal-token-to-external-token-exchange)). 
 
 It also implements a refresh mechanism, ensuring that both the internal access token as well as any external IDP
 tokens are updated individually. If the update is not possible, it forces a re-authentication of the user.
