@@ -31,5 +31,5 @@ GCS_TOKEN_PROVIDER_KEY=google
 These environment variables must correspond to the settings in the
 [TokenExchangeAuthenticator](../TokenExchangeAuthenticator).
 
-This implementation also relies on the environment variable `JPY_API_TOKEN`, which is automatically set by Jupyterhub.
+This implementation also relies on the environment variable `JUPYTERHUB_API_TOKEN`, which is automatically set by Jupyterhub.
 

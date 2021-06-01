@@ -5,24 +5,25 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class AuthProviderClient {
 
-    private final Logger log = LoggerFactory.getLogger(this.getClass());
+    private static final Logger LOG = Logger.getLogger(AuthProviderClient.class.getName());
+    private final String authProviderUrl;
     private OkHttpClient client;
-    private String authProviderUrl;
 
     public AuthProviderClient(String authProviderUrl) {
         this.authProviderUrl = authProviderUrl;
         OkHttpClient.Builder builder = new OkHttpClient.Builder().callTimeout(10, TimeUnit.SECONDS);
         builder.addInterceptor(new BearerTokenInterceptor(new JHubTokenSupplier()));
         client = builder.build();
+        LOG.info(String.format("Using auth provider url: %s", this.authProviderUrl));
     }
 
     public AuthResponse getAuth() {
@@ -35,7 +36,7 @@ public class AuthProviderClient {
             Gson gson = new Gson();
             return gson.fromJson(json, AuthResponse.class);
         } catch (IOException e) {
-            log.error("getAccessToken failed", e);
+            LOG.log(Level.WARNING, "getAccessToken failed", e);
             throw new AuthProviderException(e);
         }
     }
