@@ -230,6 +230,8 @@
                                     <include>com.squareup.okhttp3:*</include>
                                     <include>com.google.code.gson:*</include>
                                     <include>okhttp3:*</include>
+                                    <include>org.jetbrains.kotlin:kotlin-stdlib:*</include>
+                                    <include>org.jetbrains.kotlin:kotlin-stdlib-common:*</include>
                                 </includes>
                             </artifactSet>
                             <minimizeJar>false</minimizeJar>
