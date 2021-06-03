@@ -106,7 +106,7 @@ async def test_authenticator_with_token_exchange(oauth_client):
         assert 'scope' in auth_state
         assert 'exchanged_tokens' in auth_state
         assert 'ext_idp' in auth_state['exchanged_tokens']
-        assert 'access-token' in auth_state['exchanged_tokens']['ext_idp']
+        assert 'access_token' in auth_state['exchanged_tokens']['ext_idp']
         assert 'exp' in auth_state['exchanged_tokens']['ext_idp']
 
 

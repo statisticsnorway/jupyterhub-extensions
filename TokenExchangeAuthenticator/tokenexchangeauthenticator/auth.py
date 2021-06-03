@@ -209,7 +209,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         data = json.loads(response.body.decode('utf8', 'replace'))
         self.log.info('Exchange token expires in %s secs' % int(round(data.get('expires_in', 0) - time.time())))
         return {
-            'access-token': data.get('access_token', None),
+            'access_token': data.get('access_token', None),
             'exp': data.get('expires_in', 0)
         }
 
