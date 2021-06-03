@@ -222,12 +222,17 @@
                                     <pattern>com.google.code.gson</pattern>
                                     <shadedPattern>no.ssb.dapla.com.google.gson</shadedPattern>
                                 </relocation>
+                                <relocation>
+                                    <pattern>okio</pattern>
+                                    <shadedPattern>no.ssb.dapla.spark.okio</shadedPattern>
+                                </relocation>
                             </relocations>
                             <shadedClassifierName>shaded</shadedClassifierName>
                             <shadedArtifactAttached>true</shadedArtifactAttached>
                             <artifactSet>
                                 <includes>
                                     <include>com.squareup.okhttp3:*</include>
+                                    <include>com.squareup.okio:*</include>
                                     <include>com.google.code.gson:*</include>
                                     <include>okhttp3:*</include>
                                     <include>org.jetbrains.kotlin:kotlin-stdlib:*</include>
