@@ -11,7 +11,7 @@ from jupyterhub.handlers import LogoutHandler, BaseHandler
 from jwt.algorithms import RSAAlgorithm
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
-from tornado.httpclient import HTTPRequest
+from tornado.httpclient import HTTPRequest, HTTPClientError
 from traitlets import Unicode, List, Bool
 
 
@@ -116,8 +116,12 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                     ),
                 )
 
-        user['auth_state']['exchanged_tokens'] = await self._exchange_tokens(user['auth_state']['access_token'])
-        self.log.info("Authentication Successful for user: %s" % (user['name']))
+        try:
+            user['auth_state']['exchanged_tokens'] = await self._exchange_tokens(user['auth_state']['access_token'])
+        except HTTPClientError as error:
+            self.log.error('Token exchange failed for user %s with response %s\n%s', user.name, error, error.response)
+
+        self.log.info("Authentication Successful for user: %s", user.name)
         return user
 
     async def pre_spawn_start(self, user, spawner):
@@ -164,6 +168,10 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             elif diff_refresh < 0:
                 # Refresh token not valid, need to re-authenticate again
                 self.log.info("Refresh token not valid, need to re-authenticate again")
+                await handler.stop_single_user(user, user.spawner.name)
+                #handler.clear_cookie("jupyterhub-hub-login")
+                #handler.clear_cookie("jupyterhub-session-id")
+                #handler.redirect('/hub/logout')
                 return None
 
             else:
