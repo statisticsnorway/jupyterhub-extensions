@@ -119,9 +119,10 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         try:
             user['auth_state']['exchanged_tokens'] = await self._exchange_tokens(user['auth_state']['access_token'])
         except HTTPClientError as error:
-            self.log.error('Token exchange failed for user %s with response %s\n%s', user.name, error, error.response)
+            self.log.error('Token exchange failed for user %s with response %s\n%s', user['name'], error,
+                           error.response)
 
-        self.log.info("Authentication Successful for user: %s", user.name)
+        self.log.info("Authentication Successful for user: %s" % user['name'])
         return user
 
     async def pre_spawn_start(self, user, spawner):
