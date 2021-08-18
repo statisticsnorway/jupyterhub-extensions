@@ -21,7 +21,7 @@ DEPENDENCIES = [
 
 setup(
     name="TokenExchangeAuthenticator",
-    version="0.0.9",
+    version="0.1.0",
     url="https://github.com/statisticsnorway/jupyterhub-extensions",
     license='MIT',
 
