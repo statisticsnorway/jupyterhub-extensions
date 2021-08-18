@@ -214,8 +214,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             body=parse.urlencode(values).encode('ascii'),
         )
-        response = await self.http_client().fetch(req)
-        data = json.loads(response.body.decode('utf8', 'replace'))
+        data = await self.fetch(req)
         self.log.info('Exchange token expires in %s secs' % int(round(data.get('expires_in', 0) - time.time())))
         return {
             'access_token': data.get('access_token', None),
@@ -242,8 +241,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             body=parse.urlencode(values).encode('ascii'),
         )
-        response = await self.http_client().fetch(req)
-        data = json.loads(response.body.decode('utf8', 'replace'))
+        data = await self.fetch(req)
         return data.get('access_token', None), data.get('refresh_token', None)
 
     async def _check_for_expired_exchange_tokens(self, auth_state):
