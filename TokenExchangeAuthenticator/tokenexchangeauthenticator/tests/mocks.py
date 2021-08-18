@@ -200,7 +200,7 @@ def setup_oauth_mock(
             {'exp': dt},
             'secret',
             algorithm='HS256'
-        ).decode('ascii')
+        )
         user = oauth_codes.pop(code)
         access_tokens[token] = user
         model = {
