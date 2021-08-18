@@ -196,11 +196,7 @@ def setup_oauth_mock(
 
         # consume code, allocate token
         dt = datetime.now() + timedelta(hours=1)
-        token = jwt.encode(
-            {'exp': dt},
-            'secret',
-            algorithm='HS256'
-        )
+        token = jwt.encode({'exp': dt}, 'secret', algorithm='HS256').decode('ascii')
         user = oauth_codes.pop(code)
         access_tokens[token] = user
         model = {
