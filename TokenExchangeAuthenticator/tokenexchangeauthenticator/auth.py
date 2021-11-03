@@ -36,18 +36,6 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         help="If set, exposes the user's access token(s) at this path"
     )
 
-    enable_logout = Bool(
-        default_value=False,
-        config=True,
-        help="If True, it will logout in SSO."
-    )
-
-    logout_redirect_uri = Unicode(
-        default_value='',
-        config=True,
-        help="URL to invalidate the SSO cookie."
-    )
-
     hosted_domain = List(
         Unicode(),
         config=True,
@@ -118,6 +106,9 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
 
         try:
             user['auth_state']['exchanged_tokens'] = await self._exchange_tokens(user['auth_state']['access_token'])
+        except KeyError:
+            self.log.error('Exchanged tokens missing from auth_state for user %s', user['name'])
+            handler.redirect('/hub/logout')
         except HTTPClientError as error:
             self.log.error('Token exchange failed for user %s with response %s\n%s', user['name'], error,
                            error.response)
@@ -261,7 +252,6 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
 
     def get_handlers(self, app):
         handlers = super().get_handlers(app)
-        handlers.append((r'/logout', SSOLogoutHandler))
         if self.local_user_exposed_path:
             handlers.append((r'%s' % self.local_user_exposed_path, AuthHandler))
         return handlers
@@ -276,24 +266,6 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         }
         return jwt.decode(token, self.public_key if verify_signature else None,
                           options=options, algorithms=["HS256", "RS256"])
-
-
-
-class SSOLogoutHandler(LogoutHandler):
-    """Log a user out by clearing both their JupyterHub login cookie and SSO cookie."""
-
-    async def get(self):
-        if self.authenticator.enable_logout:
-            await self.default_handle_logout()
-            await self.handle_logout()
-
-            redirect_url = self.authenticator.end_session_url
-            if self.authenticator.logout_redirect_uri:
-                redirect_url += '?redirect_uri=%s' % self.authenticator.logout_redirect_uri
-
-            self.redirect(redirect_url)
-        else:
-            await super().get()
 
 
 class AuthHandler(BaseHandler):

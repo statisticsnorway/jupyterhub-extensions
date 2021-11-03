@@ -10,7 +10,8 @@ from pytest import fixture, raises
 from tornado.web import HTTPError
 
 from .mocks import setup_oauth_mock, mock_handler
-from ..auth import TokenExchangeAuthenticator, SSOLogoutHandler, AuthHandler
+from ..auth import TokenExchangeAuthenticator, AuthHandler
+from oauthenticator.oauth2 import OAuthLogoutHandler, STATE_COOKIE_NAME
 
 
 def openid_configuration():
@@ -179,7 +180,7 @@ async def test_hosted_domain(get_authenticator, oauth_client):
 async def test_custom_logout(monkeypatch):
     login_url = "http://myhost/login"
     authenticator = _get_authenticator()
-    logout_handler = mock_handler(SSOLogoutHandler,
+    logout_handler = mock_handler(OAuthLogoutHandler,
                                   authenticator=authenticator,
                                   login_url=login_url)
     logout_handler.clear_login_cookie = Mock()
@@ -189,10 +190,9 @@ async def test_custom_logout(monkeypatch):
 
     # Sanity check: Ensure the logout handler and url are set on the hub
     handlers = [handler for _, handler in authenticator.get_handlers(None)]
-    assert any([h == SSOLogoutHandler for h in handlers])
+    assert any([h == OAuthLogoutHandler for h in handlers])
     assert authenticator.logout_url('http://myhost') == 'http://myhost/logout'
 
     await logout_handler.get()
-    # Enable after upgrade to oauthenticator==0.14.0
-    # assert logout_handler.clear_login_cookie.called
-    # logout_handler.clear_cookie.assert_called_once_with(STATE_COOKIE_NAME)
+    assert logout_handler.clear_login_cookie.called
+    logout_handler.clear_cookie.assert_called_once_with(STATE_COOKIE_NAME)
