@@ -7,7 +7,7 @@ from urllib import request, parse
 from urllib.error import HTTPError
 
 import jwt
-from jupyterhub.handlers import LogoutHandler, BaseHandler
+from jupyterhub.handlers import BaseHandler
 from jwt.algorithms import RSAAlgorithm
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
@@ -108,6 +108,8 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             user['auth_state']['exchanged_tokens'] = await self._exchange_tokens(user['auth_state']['access_token'])
         except KeyError:
             self.log.error('Exchanged tokens missing from auth_state for user %s', user['name'])
+            handler.clear_cookie("jupyterhub-hub-login")
+            handler.clear_cookie("jupyterhub-session-id")
             handler.redirect('/hub/logout')
         except HTTPClientError as error:
             self.log.error('Token exchange failed for user %s with response %s\n%s', user['name'], error,
@@ -161,9 +163,9 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 # Refresh token not valid, need to re-authenticate again
                 self.log.info("Refresh token not valid, need to re-authenticate again")
                 await handler.stop_single_user(user, user.spawner.name)
-                #handler.clear_cookie("jupyterhub-hub-login")
-                #handler.clear_cookie("jupyterhub-session-id")
-                #handler.redirect('/hub/logout')
+                handler.clear_cookie("jupyterhub-hub-login")
+                handler.clear_cookie("jupyterhub-session-id")
+                handler.redirect('/hub/logout')
                 return None
 
             else:
