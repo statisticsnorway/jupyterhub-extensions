@@ -110,10 +110,13 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             self.log.error('Exchanged tokens missing from auth_state for user %s', user['name'])
             handler.clear_cookie("jupyterhub-hub-login")
             handler.clear_cookie("jupyterhub-session-id")
-            handler.redirect('/hub/logout')
+            return None
         except HTTPClientError as error:
             self.log.error('Token exchange failed for user %s with response %s\n%s', user['name'], error,
                            error.response)
+            handler.clear_cookie("jupyterhub-hub-login")
+            handler.clear_cookie("jupyterhub-session-id")
+            return None
 
         self.log.info("Authentication Successful for user: %s" % user['name'])
         return user
@@ -165,7 +168,6 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 await handler.stop_single_user(user, user.spawner.name)
                 handler.clear_cookie("jupyterhub-hub-login")
                 handler.clear_cookie("jupyterhub-session-id")
-                handler.redirect('/hub/logout')
                 return None
 
             else:
