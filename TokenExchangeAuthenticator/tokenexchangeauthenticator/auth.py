@@ -275,6 +275,9 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
 class AuthHandler(BaseHandler):
     """
     A custom request handler that returns user and auth state info
+
+    Args:
+        force (bool): force a refresh instead of checking last refresh time
     """
 
     @web.authenticated
@@ -288,6 +291,11 @@ class AuthHandler(BaseHandler):
             raise web.HTTPError(403)
 
         self.log.info('User is ' + user.name)
+
+        if self.get_argument('force', False):
+            self.log.info('Force token refresh instead of checking last refresh time.')
+            user = await self.refresh_auth(user, force=True)
+
         auth_state = await user.get_auth_state()
         if not auth_state:
             # user has no auth state
