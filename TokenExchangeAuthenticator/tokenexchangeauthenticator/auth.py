@@ -294,7 +294,7 @@ class AuthHandler(BaseHandler):
 
         if self.get_argument('force', False):
             self.log.info('Force token refresh instead of checking last refresh time.')
-            user = self.refresh_auth(user, force=True)
+            user = await self.refresh_auth(user, force=True)
 
         auth_state = await user.get_auth_state()
         if not auth_state:
