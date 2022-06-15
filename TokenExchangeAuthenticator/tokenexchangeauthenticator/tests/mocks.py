@@ -157,7 +157,7 @@ def setup_oauth_mock(
             'access_token': uuid.uuid4().hex,
             'token_type': token_type,
             'issued_token_type': 'urn:ietf:params:oauth:token-type:access_token',
-            'expires_in': (datetime.now() + timedelta(hours=1)).timestamp()
+            'expires_in': 3600,
         }
 
     def access_token(request):

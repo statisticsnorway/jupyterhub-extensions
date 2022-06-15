@@ -144,6 +144,7 @@ async def test_authenticator_refresh_token_exchange(get_authenticator, oauth_cli
     class SimpleUser:
         def __init__(self, user_info):
             self.user_info = user_info
+            self.name = user_info['name']
             dt = datetime.now() + timedelta(hours=1)
             user_info['access_token'] = jwt.encode({'exp': dt}, 'secret', algorithm='HS256')
             user_info['refresh_token'] = jwt.encode({'exp': dt}, 'secret', algorithm='HS256')
@@ -151,6 +152,7 @@ async def test_authenticator_refresh_token_exchange(get_authenticator, oauth_cli
                 'external-idp-key': {
                     'access_token': 'not-a-jwt-token',
                     # simulate expired exchange token
+                    'expires_in': -100,
                     'exp': int(round(time.time()) - 100)
                 }
             }

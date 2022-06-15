@@ -3,6 +3,7 @@ TokenExchangeAuthenticator - a custom GenericOAuthenticator extension.
 """
 import json
 import time
+from datetime import datetime, timedelta
 from urllib import request, parse
 from urllib.error import HTTPError
 
@@ -154,6 +155,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             if diff_access > self.auth_refresh_age:
                 # Access token is still valid - check exchange tokens
                 if 'exchanged_tokens' in auth_state and await self._check_for_expired_exchange_tokens(auth_state):
+                    self.log.info("New exchange_tokens updated for user %s" % user.name)
                     return {
                         'auth_state': auth_state
                     }
@@ -209,11 +211,16 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             body=parse.urlencode(values).encode('ascii'),
         )
+        # See https://datatracker.ietf.org/doc/html/rfc8693#section-2.2.1
+        # Token exchange reponse contains access_token and expires_in (not exp)
         data = await self.fetch(req)
-        self.log.info('Exchange token expires in %s secs' % int(round(data.get('expires_in', 0) - time.time())))
+        # Calculate exp. This is more convenient to use since 'expires_in' is just a snapshot of remaining seconds
+        exp = round((datetime.now() + timedelta(seconds=data.get('expires_in', 0))).timestamp())
+        self.log.info('Exchange token expires in %s secs (at time %s)' % (data.get('expires_in', 0), exp))
         return {
             'access_token': data.get('access_token', None),
-            'exp': data.get('expires_in', 0)
+            'expires_in': data.get('expires_in', 0),
+            'exp': exp
         }
 
     async def _exchange_tokens(self, token):
@@ -247,7 +254,8 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 self.log.warn("Exchange token for '%s' is missing 'exp' property" % key)
                 break
             diff_access = exchange_token['exp'] - time.time()
-            if diff_access < 0:
+            # Use the same diff threshold as in refresh_user
+            if diff_access < self.auth_refresh_age:
                 self.log.info("Refresh token exchange for provider: %s" % key)
                 new_token = await self._exchange_token(key, auth_state['access_token'])
                 auth_state['exchanged_tokens'][key] = new_token
@@ -288,6 +296,8 @@ class AuthHandler(BaseHandler):
             raise web.HTTPError(403)
 
         self.log.info('User is ' + user.name)
+        # Force auth refresh to override the auth_refresh_age of 300 secs
+        user = await self.refresh_auth(user, force=True)
         auth_state = await user.get_auth_state()
         if not auth_state:
             # user has no auth state
