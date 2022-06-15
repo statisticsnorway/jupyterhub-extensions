@@ -151,6 +151,7 @@ async def test_authenticator_refresh_token_exchange(get_authenticator, oauth_cli
                 'external-idp-key': {
                     'access_token': 'not-a-jwt-token',
                     # simulate expired exchange token
+                    'expires_in': -100,
                     'exp': int(round(time.time()) - 100)
                 }
             }
