@@ -160,7 +160,7 @@ async def test_authenticator_refresh_all_invalid(get_authenticator, oauth_client
         async def get_auth_state(self):
             return self.user_info
 
-    result = await authenticator.refresh_user(SimpleUser(user_info), handler=handler)
+    result = await authenticator.refresh_user(SimpleUser(user_info))
     auth_state = result['auth_state']
     assert 'exchanged_tokens' in auth_state
 
@@ -190,7 +190,7 @@ async def test_authenticator_refresh_token_exchange(get_authenticator, oauth_cli
         async def get_auth_state(self):
             return self.user_info
 
-    result = await authenticator.refresh_user(SimpleUser(user_info), handler=handler)
+    result = await authenticator.refresh_user(SimpleUser(user_info))
     auth_state = result['auth_state']
     assert 'exchanged_tokens' in auth_state
 
