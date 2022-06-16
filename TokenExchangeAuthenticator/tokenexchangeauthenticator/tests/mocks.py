@@ -286,7 +286,6 @@ def setup_oauth_mock(
         handler = Mock(spec=web.RequestHandler)
         handler.find_user = Mock(return_value=None)
         handler.get_argument = Mock(return_value=code)
-        handler.stop_single_user = Mock(return_value=None)
         handler.request = HTTPServerRequest(
             method='GET',
             uri='https://hub.example.com?code=%s' % code
