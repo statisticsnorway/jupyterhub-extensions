@@ -152,17 +152,11 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             # If we request the offline_access scope, our refresh token won't have expiration
             diff_refresh = (decoded_refresh_token['exp'] - time.time()) if 'exp' in decoded_refresh_token else 0
 
-            if diff_access > self.auth_refresh_age:
-                # Access token is still valid - check exchange tokens
-                if 'exchanged_tokens' in auth_state and await self._check_for_expired_exchange_tokens(auth_state):
-                    self.log.info("New exchange_tokens updated for user %s" % user.name)
-                    return {
-                        'auth_state': auth_state
-                    }
-                else:
-                    # All tokens are still valid and will stay until next refresh
-                    self.log.info("All tokens are still valid and will stay until next refresh")
-                    return True
+            if diff_access > self.auth_refresh_age and 'exchanged_tokens' in auth_state and not \
+                    await self._is_expired_exchange_tokens(auth_state):
+                # All tokens are still valid and will stay until next refresh
+                self.log.info("All tokens are still valid and will stay until next refresh")
+                return True
 
             elif diff_refresh < 0:
                 # Refresh token not valid, need to re-authenticate again
@@ -173,6 +167,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 return None
 
             else:
+                # Access token or exchange tokens are expired
                 # We need to refresh access token (which will also refresh the refresh token)
                 access_token, refresh_token = await self._refresh_token(auth_state['refresh_token'])
                 # check signature for new access token, if it fails we catch in the exception below
@@ -246,8 +241,7 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         data = await self.fetch(req)
         return data.get('access_token', None), data.get('refresh_token', None)
 
-    async def _check_for_expired_exchange_tokens(self, auth_state):
-        modified = False
+    async def _is_expired_exchange_tokens(self, auth_state):
         for key in auth_state['exchanged_tokens']:
             exchange_token = auth_state['exchanged_tokens'][key]
             if 'exp' not in exchange_token:
@@ -256,11 +250,8 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             diff_access = exchange_token['exp'] - time.time()
             # Use the same diff threshold as in refresh_user
             if diff_access < self.auth_refresh_age:
-                self.log.info("Refresh token exchange for provider: %s" % key)
-                new_token = await self._exchange_token(key, auth_state['access_token'])
-                auth_state['exchanged_tokens'][key] = new_token
-                modified = True
-        return modified
+                return True
+        return False
 
     def get_handlers(self, app):
         handlers = super().get_handlers(app)

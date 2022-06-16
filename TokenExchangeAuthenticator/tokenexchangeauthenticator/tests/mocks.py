@@ -139,7 +139,8 @@ def setup_oauth_mock(
             query = parse_qs(query)
             if 'grant_type' in query and query['grant_type'][0] == 'urn:ietf:params:oauth:grant-type:token-exchange':
                 return token_exchange(request, query)
-
+            elif 'grant_type' in query and query['grant_type'][0] == 'refresh_token':
+                return refresh_access(request)
         return access_token(request)
 
     def token_exchange(request, query):
@@ -159,6 +160,43 @@ def setup_oauth_mock(
             'issued_token_type': 'urn:ietf:params:oauth:token-type:access_token',
             'expires_in': 3600,
         }
+
+    def refresh_access(request):
+        assert request.method == 'POST', request.method
+        if token_request_style == 'json':
+            body = request.body.decode('utf8')
+            try:
+                body = json.loads(body)
+            except ValueError:
+                return HTTPResponse(request=request, code=400,
+                                    reason="Body not JSON: %r" % body,
+                                    )
+            else:
+                assert body['refresh_token'] is not None
+        else:
+            query = urlparse(request.url).query
+            if not query:
+                query = request.body.decode('utf8')
+            query = parse_qs(query)
+
+            if 'refresh_token' not in query:
+                return HTTPResponse(request=request, code=400,
+                                    reason="No refresh_token in access token request: url=%s, body=%s" % (
+                                        request.url, request.body)
+                                    )
+            assert query['refresh_token'][0] is not None
+
+        # consume code, allocate token
+        dt = datetime.now() + timedelta(hours=1)
+        token = jwt.encode({'exp': dt}, 'secret', algorithm='HS256').decode('ascii')
+        model = {
+            'access_token': token,
+            'refresh_token': token,
+            'token_type': token_type,
+        }
+        if token_request_style == 'jwt':
+            model['id_token'] = user['id_token']
+        return model
 
     def access_token(request):
         """Handler for access token endpoint
