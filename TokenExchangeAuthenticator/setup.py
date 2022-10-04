@@ -14,9 +14,9 @@ def read(filename):
 
 
 DEPENDENCIES = [
-    'jupyterhub>=1.4.2',
-    'oauthenticator>=14.1.0',
-    'pyjwt[crypto]>=1.7.1'
+    'jupyterhub>=3.0.0',
+    'oauthenticator>=15.1.0',
+    'pyjwt[crypto]>=2.4.0'
 ]
 
 setup(
