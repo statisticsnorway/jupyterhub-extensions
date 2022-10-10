@@ -8,7 +8,7 @@ from urllib import request, parse
 from urllib.error import HTTPError
 
 import jwt
-from jupyterhub.handlers import BaseHandler
+from jupyterhub.apihandlers.base import APIHandler
 from jwt.algorithms import RSAAlgorithm
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
@@ -276,12 +276,11 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                           options=options, algorithms=["HS256", "RS256"])
 
 
-class AuthHandler(BaseHandler):
+class AuthHandler(APIHandler):
     """
     A custom request handler that returns user and auth state info
     """
 
-    @web.authenticated
     async def get(self):
         user = await self.get_current_user()
         if user is None:
