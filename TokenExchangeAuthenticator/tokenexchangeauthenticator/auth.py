@@ -9,6 +9,7 @@ from urllib.error import HTTPError
 
 import jwt
 from jupyterhub.apihandlers.base import APIHandler
+from jupyterhub.scopes import needs_scope
 from jwt.algorithms import RSAAlgorithm
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
@@ -281,6 +282,7 @@ class AuthHandler(APIHandler):
     A custom request handler that returns user and auth state info
     """
 
+    @needs_scope("read:users")
     async def get(self):
         user = await self.get_current_user()
         if user is None:
