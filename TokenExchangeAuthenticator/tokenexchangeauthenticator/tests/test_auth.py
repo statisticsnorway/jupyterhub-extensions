@@ -6,6 +6,8 @@ from functools import partial
 
 import jwt
 import time
+
+import pytest
 from pytest import fixture, raises, mark
 from tornado.web import HTTPError
 
@@ -66,11 +68,12 @@ def oauth_client(client):
     return client
 
 
+@pytest.mark.asyncio
 async def test_authenticator(get_authenticator, oauth_client):
     authenticator = get_authenticator()
     handler = oauth_client.handler_for_user(user_model('john.doe', email='fake@email.com'))
     user_info = await authenticator.authenticate(handler)
-    assert sorted(user_info) == ['auth_state', 'name']
+    assert sorted(user_info) == ['admin', 'auth_state', 'name']
     name = user_info['name']
     assert name == 'john.doe'
     auth_state = user_info['auth_state']
@@ -78,8 +81,10 @@ async def test_authenticator(get_authenticator, oauth_client):
     assert 'oauth_user' in auth_state
     assert 'refresh_token' in auth_state
     assert 'scope' in auth_state
+    assert user_info['admin'] is None
 
 
+@pytest.mark.asyncio
 async def test_authenticator_with_local_user_exposed_path(get_authenticator, oauth_client):
     authenticator = get_authenticator(local_user_exposed_path='/custom-api/userinfo')
 
@@ -89,12 +94,13 @@ async def test_authenticator_with_local_user_exposed_path(get_authenticator, oau
     assert any([h == AuthHandler for h in handlers])
 
 
+@pytest.mark.asyncio
 async def test_authenticator_with_token_exchange(get_authenticator, oauth_client):
     authenticator = get_authenticator(exchange_tokens=['ext_idp'])
 
     handler = oauth_client.handler_for_user(user_model('john.doe', email='fake@email.com'))
     user_info = await authenticator.authenticate(handler)
-    assert sorted(user_info) == ['auth_state', 'name']
+    assert sorted(user_info) == ['admin', 'auth_state', 'name']
     name = user_info['name']
     assert name == 'john.doe'
     auth_state = user_info['auth_state']
@@ -106,8 +112,10 @@ async def test_authenticator_with_token_exchange(get_authenticator, oauth_client
     assert 'ext_idp' in auth_state['exchanged_tokens']
     assert 'access_token' in auth_state['exchanged_tokens']['ext_idp']
     assert 'exp' in auth_state['exchanged_tokens']['ext_idp']
+    assert user_info['admin'] is None
 
 
+@pytest.mark.asyncio
 async def test_authenticator_refresh_all_valid(get_authenticator, oauth_client):
     authenticator = get_authenticator()
 
@@ -116,6 +124,7 @@ async def test_authenticator_refresh_all_valid(get_authenticator, oauth_client):
 
     class SimpleUser:
         def __init__(self, user_info):
+            self.name = "test-user@ssb.no"
             self.user_info = user_info
             dt = datetime.now() + timedelta(hours=1)
             user_info['access_token'] = jwt.encode({'exp': dt}, 'secret', algorithm='HS256')
@@ -134,6 +143,8 @@ async def test_authenticator_refresh_all_valid(get_authenticator, oauth_client):
     # Still valid
     assert result is True
 
+
+@pytest.mark.asyncio
 @mark.skip("Fails on azure pipelines")
 async def test_authenticator_refresh_all_invalid(get_authenticator, oauth_client):
     authenticator = get_authenticator()
@@ -165,6 +176,7 @@ async def test_authenticator_refresh_all_invalid(get_authenticator, oauth_client
     assert 'exchanged_tokens' in auth_state
 
 
+@pytest.mark.asyncio
 async def test_authenticator_refresh_token_exchange(get_authenticator, oauth_client):
     authenticator = get_authenticator()
 
@@ -195,6 +207,7 @@ async def test_authenticator_refresh_token_exchange(get_authenticator, oauth_cli
     assert 'exchanged_tokens' in auth_state
 
 
+@pytest.mark.asyncio
 async def test_hosted_domain(get_authenticator, oauth_client):
     authenticator = get_authenticator(hosted_domain=['email.com', 'mycollege.edu'])
 
@@ -209,6 +222,7 @@ async def test_hosted_domain(get_authenticator, oauth_client):
     assert exc.value.status_code == 403
 
 
+@pytest.mark.asyncio
 async def test_custom_logout(monkeypatch):
     login_url = "http://myhost/login"
     authenticator = _get_authenticator()

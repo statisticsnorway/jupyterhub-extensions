@@ -108,32 +108,33 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
         try:
             user['auth_state']['exchanged_tokens'] = await self._exchange_tokens(user['auth_state']['access_token'])
         except KeyError:
-            self.log.error('Exchanged tokens missing from auth_state for user %s', user['name'])
+            self.log.error(
+                prefix_log_message('Exchanged tokens missing from auth_state for user', user['name']))
             handler.clear_cookie("jupyterhub-hub-login")
             handler.clear_cookie("jupyterhub-session-id")
             return None
         except HTTPClientError as error:
-            self.log.error('Token exchange failed for user %s with response %s\n%s', user['name'], error,
-                           error.response)
+            self.log.error(prefix_log_message(
+                f'Token exchange failed for user, with {error =}, {error.response =}', user['name']))
             handler.clear_cookie("jupyterhub-hub-login")
             handler.clear_cookie("jupyterhub-session-id")
             return None
 
-        self.log.info("Authentication Successful for user: %s" % user['name'])
+        self.log.info(prefix_log_message("Authentication Successful", user['name']))
         return user
 
     async def pre_spawn_start(self, user, spawner):
         """Pass upstream_token to spawner via environment variable"""
-        self.log.info('Calling pre_spawn_start for %s ' % user.name)
+        self.log.info(prefix_log_message('Calling pre_spawn_start', user.name))
         # Retrieve user authentication info from JH
         auth_state = await user.get_auth_state()
         if not auth_state:
             # user has no auth state
-            self.log.error('User has no auth state')
+            self.log.error(prefix_log_message('User has no auth state', user.name))
             return
 
         # update env var to pass to notebooks
-        self.log.info('Starting notebook for: ' + user.name)
+        self.log.info(prefix_log_message('Starting notebook', user.name))
 
     async def refresh_user(self, user, handler=None):
         """
@@ -155,17 +156,20 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
             if diff_access > self.auth_refresh_age:
                 if 'exchanged_tokens' in auth_state and await self._is_expired_exchange_tokens(auth_state):
                     auth_state['exchanged_tokens'] = await self._exchange_tokens(auth_state['access_token'])
-                    self.log.info("New exchange_tokens updated for user %s" % user.name)
+                    self.log.info(prefix_log_message("New exchange_tokens updated for user", user.name))
                     return {
                         'auth_state': auth_state
                     }
                 # All tokens are still valid and will stay until next refresh
-                self.log.info("All tokens are still valid and will stay until next refresh")
+                self.log.info(
+                    prefix_log_message("All tokens are still valid and will stay until next refresh",
+                                       user.name))
                 return True
 
             elif diff_refresh < 0:
                 # Refresh token not valid, need to re-authenticate again
-                self.log.info("Refresh token not valid, need to re-authenticate again")
+                self.log.info(
+                    prefix_log_message("Refresh token not valid, need to re-authenticate again", user.name))
                 await handler.stop_single_user(user, user.spawner.name)
                 handler.clear_cookie("jupyterhub-hub-login")
                 handler.clear_cookie("jupyterhub-session-id")
@@ -176,21 +180,23 @@ class TokenExchangeAuthenticator(GenericOAuthenticator):
                 # We need to refresh access token (which will also refresh the refresh token)
                 access_token, refresh_token = await self._refresh_token(auth_state['refresh_token'])
                 # check signature for new access token, if it fails we catch in the exception below
-                self.log.info("Refresh user token")
+                self.log.info(prefix_log_message("Refresh user token", user.name))
                 self._decode_token(access_token)
                 auth_state['access_token'] = access_token
                 auth_state['refresh_token'] = refresh_token
                 auth_state['exchanged_tokens'] = await self._exchange_tokens(access_token)
 
-                self.log.info('User %s oAuth tokens refreshed' % user.name)
+                self.log.info(prefix_log_message('User oAuth tokens refreshed', user.name))
                 return {
                     'auth_state': auth_state
                 }
         except HTTPError as e:
-            self.log.error("Failure calling the renew endpoint: %s (code: %s)" % (e.read(), e.code))
+            self.log.error(
+                prefix_log_message(f"Failure calling the renew endpoint: {e.read()} (code: {e.code})",
+                                   user.name))
 
         except:
-            self.log.error("Failed to refresh the oAuth tokens", exc_info=True)
+            self.log.error(prefix_log_message("Failed to refresh the oAuth tokens", user.name), exc_info=True)
 
         return False
 
@@ -288,7 +294,7 @@ class AuthHandler(APIHandler):
             self.log.info('User is none')
             raise web.HTTPError(403)
 
-        self.log.info('User is ' + user.name)
+        self.log.info(prefix_log_message('User exists', user.name))
         # Force auth refresh to override the auth_refresh_age of 300 secs
         user = await self.refresh_auth(user, force=True)
         auth_state = await user.get_auth_state()
@@ -303,3 +309,7 @@ class AuthHandler(APIHandler):
             "refresh_token": auth_state['refresh_token'],
             "exchanged_tokens": auth_state['exchanged_tokens']
         })
+
+
+def prefix_log_message(msg, user):
+    return f"[User: {user}] {msg}"
